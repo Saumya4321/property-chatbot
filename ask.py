@@ -20,16 +20,29 @@ Rules:
 1. Answer ONLY from the context provided. If it doesn't contain the answer, say you don't have that information.
 2. Never invent prices, sizes, dates or availability. Give prices exactly as listed, with currency.
 3. Include the link for every property you mention.
-4. Reply in the same language as the question. Keep answers short and clear."""
+4. Reply in the same language as the question. Keep answers short and clear.
+5. Use the earlier conversation to understand follow-up questions (e.g. what "it" refers to), but take facts only from the context."""
 
-
-def ask(question):
+def ask(question, history=None):
     """Find relevant documents, then ask the model. Returns (answer, model_used)."""
-    context = "\n\n---\n\n".join(search(question, k=5))
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{context or '(nothing relevant found)'}\n\nQuestion: {question}"},
-    ]
+    history = history or []
+
+    # Follow-ups like "what amenities does it have?" don't name the property,
+    # so also search with the previous question attached.
+    previous = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+    results = search(f"{previous} {question}", k=3) if previous else []
+    for text in search(question, k=5):
+        if text not in results:
+            results.append(text)
+    context = "\n\n---\n\n".join(results[:6])
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages += history[-6:]                      # last 3 exchanges
+    messages.append({
+        "role": "user",
+        "content": f"Context:\n{context or '(nothing relevant found)'}\n\nQuestion: {question}",
+    })
+
     for model in MODELS:
         try:
             r = requests.post(
@@ -48,13 +61,16 @@ def ask(question):
         print(f"  [{model} returned status {r.status_code}, trying next]")
     return "Sorry, all models are busy right now. Please try again in a minute.", None
 
-
 if __name__ == "__main__":
     print("Ask about properties. Type 'quit' to exit.")
+    history = []
     while True:
         question = input("\nYou: ").strip()
         if question.lower() in ("quit", "exit"):
             break
         if question:
-            answer, model = ask(question)
+            answer, model = ask(question, history)
             print(f"\nBot [{model}]:\n{answer}")
+            if model:                             # only remember real answers
+                history += [{"role": "user", "content": question},
+                            {"role": "assistant", "content": answer}]

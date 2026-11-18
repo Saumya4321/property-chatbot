@@ -40,13 +40,14 @@ const log = document.getElementById("log");
 const form = document.getElementById("form");
 const input = document.getElementById("q");
 const button = document.getElementById("send");
+const history = [];                      // the conversation so far
 
 const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function add(cls, html) {
   const div = document.createElement("div");
   div.className = "msg " + cls;
-  div.dir = "auto";                      // right-to-left automatically for Arabic
+  div.dir = "auto";
   div.innerHTML = html;
   log.appendChild(div);
   window.scrollTo(0, document.body.scrollHeight);
@@ -65,11 +66,14 @@ form.addEventListener("submit", async (e) => {
     const res = await fetch("/chat", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({message: text}),
+      body: JSON.stringify({message: text, history: history.slice(-6)}),
     });
     const data = await res.json();
     bot.innerHTML = marked.parse(escape(data.answer))
       + (data.model ? `<div class="meta">Answered by ${escape(data.model)}</div>` : "");
+    if (data.model) {                    // only remember real answers, not "models busy" errors
+      history.push({role: "user", content: text}, {role: "assistant", content: data.answer});
+    }
   } catch (err) {
     bot.textContent = "Something went wrong. Please try again.";
   }
