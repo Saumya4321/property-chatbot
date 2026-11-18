@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Property Assistant</title>
+<base target="_blank">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 16px;
+         background: #f6f7f6; color: #1d2b28; }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .sub { color: #5b6b67; margin-top: 0; font-size: .9rem; }
+  #log { display: flex; flex-direction: column; gap: 12px; margin: 20px 0 90px; }
+  .msg { padding: 10px 14px; border-radius: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+  .user { align-self: flex-end; background: #1d4a43; color: #fff; max-width: 80%; }
+  .bot { align-self: flex-start; background: #fff; border: 1px solid #dde3e1; max-width: 100%; }
+  .bot p { margin: 0 0 8px; }
+  .meta { font-size: .75rem; color: #5b6b67; margin-top: 6px; }
+  form { position: fixed; bottom: 0; left: 0; right: 0; background: #f6f7f6;
+         padding: 12px 16px; border-top: 1px solid #dde3e1; }
+  .row { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
+  input { flex: 1; padding: 10px 12px; font-size: 1rem; border: 1px solid #c9d2cf; border-radius: 10px; }
+  button { padding: 10px 16px; border: 0; border-radius: 10px; background: #1d4a43; color: #fff;
+           font-size: 1rem; cursor: pointer; }
+  button:disabled { opacity: .5; }
+</style>
+</head>
+<body>
+<h1>Property Assistant</h1>
+<p class="sub">Ask about DarGlobal projects and Wasalt listings in Riyadh and Jeddah, in English or Arabic.</p>
+<div id="log"></div>
+<form id="form"><div class="row">
+  <input id="q" placeholder="e.g. 3 bedroom apartments for sale in Jeddah" autocomplete="off" dir="auto">
+  <button id="send">Send</button>
+</div></form>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+const log = document.getElementById("log");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const button = document.getElementById("send");
+
+const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function add(cls, html) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.dir = "auto";                      // right-to-left automatically for Arabic
+  div.innerHTML = html;
+  log.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
+  return div;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  add("user", escape(text));
+  const bot = add("bot", "Thinking… free models can take up to a minute.");
+  button.disabled = true;
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({message: text}),
+    });
+    const data = await res.json();
+    bot.innerHTML = marked.parse(escape(data.answer))
+      + (data.model ? `<div class="meta">Answered by ${escape(data.model)}</div>` : "");
+  } catch (err) {
+    bot.textContent = "Something went wrong. Please try again.";
+  }
+  button.disabled = false;
+  input.focus();
+});
+</script>
+</body>
+</html>
