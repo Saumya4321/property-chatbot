@@ -1,6 +1,6 @@
 # Property Assistant: DarGlobal & Wasalt chatbot
 
-**Live demo:** https://your-app.onrender.com
+**Live demo:** https://property-chatbot-njur.onrender.com/
 (Hosted on Render's free tier: the first request after 15 minutes idle takes about a minute to wake up.)
 
 Ask about DarGlobal's luxury projects (UAE, Saudi Arabia, Oman, Qatar, Spain, UK) and Wasalt
